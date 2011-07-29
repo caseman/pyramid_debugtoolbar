@@ -9,19 +9,10 @@ class HeaderDebugPanel(DebugPanel):
     """
     name = 'Header'
     has_content = True
-    # List of headers we want to display
-    header_filter = (
+
+    # List of CGI headers to display along with HTTP_ custom headers
+    request_header_filter = (
         'CONTENT_TYPE',
-        'HTTP_ACCEPT',
-        'HTTP_ACCEPT_CHARSET',
-        'HTTP_ACCEPT_ENCODING',
-        'HTTP_ACCEPT_LANGUAGE',
-        'HTTP_CACHE_CONTROL',
-        'HTTP_CONNECTION',
-        'HTTP_HOST',
-        'HTTP_KEEP_ALIVE',
-        'HTTP_REFERER',
-        'HTTP_USER_AGENT',
         'QUERY_STRING',
         'REMOTE_ADDR',
         'REMOTE_HOST',
@@ -36,10 +27,15 @@ class HeaderDebugPanel(DebugPanel):
 
     def __init__(self, request):
         self.request = request
-        self.headers = dict(
-            [(k, request.environ[k])
-                for k in self.header_filter if k in request.environ]
-        )
+        self.request_headers = [
+            (k, request.environ[k]) for k in sorted(request.environ)
+            if k in self.request_header_filter or k.startswith('HTTP_')
+        ]
+
+    def process_response(self, response):
+        self.response_headers = [
+            (k, v) for k, v in sorted(response.headerlist)
+        ]
 
     def nav_title(self):
         return _('HTTP Headers')
@@ -51,7 +47,8 @@ class HeaderDebugPanel(DebugPanel):
         return ''
 
     def content(self):
-        vars = {'headers': self.headers}
+        vars = {'request_headers': self.request_headers,
+                'response_headers': self.response_headers}
         return self.render(
             'pyramid_debugtoolbar.panels:templates/headers.jinja2',
             vars, self.request)
